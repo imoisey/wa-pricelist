@@ -61,8 +61,9 @@ class shopPricelistPluginBackendDownloadController extends waController {
         $cell_id = 3;
         foreach($tree_cats as $category) {
             // Пропускаем, если в категории нет товара
-            if(count($category['items']) == 0)
-                continue; 
+            if(count($category['items']) == 0 || 
+            ($category['count_stock'] == 0 && $pricelist['stock'] == 1) )
+                continue;
             // Стилизуем категорию
             $aSheets->mergeCells("A{$cell_id}:G{$cell_id}");
             $aSheets->getStyle("A{$cell_id}")->getFill()->applyFromArray($this->fill);
@@ -85,7 +86,7 @@ class shopPricelistPluginBackendDownloadController extends waController {
                 // Стилизуем ячейки
                 $aSheets->getStyle("A{$cell_id}")->getAlignment()->applyFromArray($this->alignment);
                 $aSheets->getStyle("B{$cell_id}")->getAlignment()->applyFromArray($this->alignment);
-                $aSheets->getStyle("B{$cell_id}")->getFont()->setSize(18);
+                $aSheets->getStyle("B{$cell_id}")->getFont()->setSize(15);
                 $aSheets->getStyle("B{$cell_id}")->getFont()->setBold(true);
                 $aSheets->getStyle("C{$cell_id}")->getAlignment()->applyFromArray($this->alignment);
                 $aSheets->getStyle("D{$cell_id}")->getAlignment()->applyFromArray($this->alignment);
@@ -96,7 +97,7 @@ class shopPricelistPluginBackendDownloadController extends waController {
                  // Вычисляем остаток, чтобы подсветить не в наличии
                 $count = $product['count'] > 0 ? $product['count'] : 0;
                 $aSheets->setCellValue("G{$cell_id}", $count);
-                if($count == 0) {
+                if($count == 0 && $pricelist['stock'] == 0) {
                     $aSheets->getStyle("A{$cell_id}")->getFont()->applyFromArray($this->out_stock_font);
                     $aSheets->getStyle("B{$cell_id}")->getFont()->applyFromArray($this->out_stock_font);
                     $aSheets->getStyle("C{$cell_id}")->getFont()->applyFromArray($this->out_stock_font);
@@ -105,6 +106,8 @@ class shopPricelistPluginBackendDownloadController extends waController {
                     $aSheets->getStyle("F{$cell_id}")->getFont()->applyFromArray($this->out_stock_font);
                     $aSheets->getStyle("G{$cell_id}")->getFont()->applyFromArray($this->out_stock_font);
                 }
+                elseif($count == 0 && $pricelist['stock'] == 1)
+                    continue;
 
                 // Вставляем картинку товара
                 $aSheets->getRowDimension($cell_id)->setRowHeight(96);
@@ -136,29 +139,6 @@ class shopPricelistPluginBackendDownloadController extends waController {
         $file = "file.xlsx";
         $objWriter->save(wa()->getConfig()->getPluginPath('pricelist').'/lib/config/data/'.$file);
 
-        /*
-        $template_xlsx = wa()->getConfig()->getPluginPath('pricelist').'/lib/config/data/'.$pricelist['storefront'].'.xlsx';
-        $path = realpath(dirname(__FILE__) . '/../../vendor/PHPExcel');
-        require_once $path . '/PHPExcel.php';
-        require_once $path .'/PHPExcel/IOFactory.php';
-        $pExcel = PHPExcel_IOFactory::createReader('Excel2007');
-        $pExcel = $pExcel->load($template_xlsx);
-        $pExcel->setActiveSheetIndex(0);
-        $aSheets = $pExcel->getActiveSheet();
-
-        $cell_id = 3;
-        foreach($cats_array as $category_id) {
-            $category = $this->getProducts($category_id);
-            foreach($category as $product) {
-                $aSheets->setCellValue('B'.$cell_id, $product['name']);
-                $cell_id++;
-            }
-        }
-
-        $objWriter = PHPExcel_IOFactory::createWriter($pExcel, 'Excel2007');
-        $file = "file.xlsx";
-        $objWriter->save(wa()->getConfig()->getPluginPath('pricelist').'/lib/config/data/'.$file);
-        */
     }
 
 
@@ -214,6 +194,16 @@ class shopPricelistPluginBackendDownloadController extends waController {
         return $image_model->getById($image_id);
     }
 
+    /**
+     * Возвращает url на карточку товара
+     *
+     * @param array $product
+     * @return void
+     */
+    public function getProductUrl($product) {
+        
+    }
+
 
     /**
      * Возвращает массив 
@@ -228,8 +218,15 @@ class shopPricelistPluginBackendDownloadController extends waController {
         foreach($cats_array as $category) {
             $category = $cat_model->getById($category);
             $products = $this->getProducts($category['id'], 'count', 'DESC');
+            // Считаем количество товаров в наличии
+            $count_stock = 0;
+            foreach($products as $i => $product) {
+                if($product['count'] > 0)
+                    $count_stock++;
+            }
             $categories[] = array(
                 'name' => $category['name'],
+                'count_stock' => $count_stock,
                 'items' => $products,
             );
         }
