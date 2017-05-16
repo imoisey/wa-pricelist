@@ -6,7 +6,7 @@ require_once $path .'/PHPExcel/IOFactory.php';
 
 class shopPricelistPluginBackendDownloadController extends waController {
 
-    public $fill = array(
+    private $fill = array(
         'type'       => PHPExcel_Style_Fill::FILL_SOLID,
         'rotation'   => 0,
         'color'   => array(
@@ -14,11 +14,27 @@ class shopPricelistPluginBackendDownloadController extends waController {
         )
     );
 
-    public $font = array(
-        'size'  => 16,
+    private $font = array(
+        'size'  => 15,
+        'bold'  => false,
         'color' => array(
 		    'rgb' => 'FFFFFF'
 	    )
+    );
+
+    private $alignment = array(
+        'horizontal' 	=> PHPExcel_Style_Alignment::HORIZONTAL_CENTER,
+        'vertical'   	=> PHPExcel_Style_Alignment::VERTICAL_CENTER,
+        'rotation'   	=> 0,
+        'wrap'       	=> true,
+        'shrinkToFit'	=> false,
+        'indent'	=> 5
+    );
+
+    private $out_stock_font = array(
+        'color' => array(
+            'rgb' => 'A0A0A0',
+        )
     );
 
     public function execute() {
@@ -32,37 +48,86 @@ class shopPricelistPluginBackendDownloadController extends waController {
         if(!is_array($pricelist))
             throw new waException('Не удалось загрузить прайс-лист. Неверный ID', 500);
         $cats_array = json_decode($pricelist['categories']);
+        // Получаем массив категорий из настроек
+        $tree_cats = $this->createTree($cats_array);
 
-        // Шаблон для прайса
-        $template_xlsx = $this->configPath($pricelist['storefront'].'.xlsx');
-        $catTree = $this->createTree($cats_array);
-
-        /**
-         * Начинаем загрузку шаблона
-         */
+        // Загружаем шаблон для прайса
         $template_xlsx = wa()->getConfig()->getPluginPath('pricelist').'/lib/config/data/'.$pricelist['storefront'].'.xlsx';
         $pExcel = PHPExcel_IOFactory::createReader('Excel2007');
         $pExcel = $pExcel->load($template_xlsx);
         $pExcel->setActiveSheetIndex(0);
         $aSheets = $pExcel->getActiveSheet();
-
-        // Начинаем загружать данные
+        // Начинаем заполнять данные в файл
         $cell_id = 3;
-        foreach($catTree as $category) {
-            if(!count($category['items']))
-                continue;
-            $category_name = $category['name'];
+        foreach($tree_cats as $category) {
+            // Пропускаем, если в категории нет товара
+            if(count($category['items']) == 0)
+                continue; 
+            // Стилизуем категорию
             $aSheets->mergeCells("A{$cell_id}:G{$cell_id}");
-            $aSheets->setCellValue('A'.$cell_id, $category_name);
-            $aSheets->getStyle('A'.$cell_id)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_CENTER);
-            $aSheets->getStyle('A'.$cell_id)->getFill()->applyFromArray($this->fill);
-            $aSheets->getStyle('A'.$cell_id)->getFont()->applyFromArray($this->font);
-            foreach($category['items'] as $item) {
-                // Загружаем фотографию
-                $imagePath = shopImage::getPath($item['image_id']);
-                wa_dump($imagePath);
+            $aSheets->getStyle("A{$cell_id}")->getFill()->applyFromArray($this->fill);
+            $aSheets->getStyle("A{$cell_id}")->getFont()->applyFromArray($this->font);
+            $aSheets->getStyle("A{$cell_id}")->getAlignment()->applyFromArray($this->alignment);
+            $aSheets->setCellValue("A{$cell_id}", $category['name']);
+            $cell_id++;
+            // Выводим товары
+            foreach($category['items'] as $product_id => $product) {
+                /**
+                 * A - фотография
+                 * B - название
+                 * С - серия
+                 * D - оптовая цена
+                 * E - розничная цена
+                 * F - ссылка на карточку товара
+                 * G - остаток
+                 */
 
-                $aSheets->setCellValue('B'.$cell_id, $item['name']);
+                // Стилизуем ячейки
+                $aSheets->getStyle("A{$cell_id}")->getAlignment()->applyFromArray($this->alignment);
+                $aSheets->getStyle("B{$cell_id}")->getAlignment()->applyFromArray($this->alignment);
+                $aSheets->getStyle("B{$cell_id}")->getFont()->setSize(18);
+                $aSheets->getStyle("B{$cell_id}")->getFont()->setBold(true);
+                $aSheets->getStyle("C{$cell_id}")->getAlignment()->applyFromArray($this->alignment);
+                $aSheets->getStyle("D{$cell_id}")->getAlignment()->applyFromArray($this->alignment);
+                $aSheets->getStyle("E{$cell_id}")->getAlignment()->applyFromArray($this->alignment);
+                $aSheets->getStyle("F{$cell_id}")->getAlignment()->applyFromArray($this->alignment);
+                $aSheets->getStyle("G{$cell_id}")->getAlignment()->applyFromArray($this->alignment);
+
+                 // Вычисляем остаток, чтобы подсветить не в наличии
+                $count = $product['count'] > 0 ? $product['count'] : 0;
+                $aSheets->setCellValue("G{$cell_id}", $count);
+                if($count == 0) {
+                    $aSheets->getStyle("A{$cell_id}")->getFont()->applyFromArray($this->out_stock_font);
+                    $aSheets->getStyle("B{$cell_id}")->getFont()->applyFromArray($this->out_stock_font);
+                    $aSheets->getStyle("C{$cell_id}")->getFont()->applyFromArray($this->out_stock_font);
+                    $aSheets->getStyle("D{$cell_id}")->getFont()->applyFromArray($this->out_stock_font);
+                    $aSheets->getStyle("E{$cell_id}")->getFont()->applyFromArray($this->out_stock_font);
+                    $aSheets->getStyle("F{$cell_id}")->getFont()->applyFromArray($this->out_stock_font);
+                    $aSheets->getStyle("G{$cell_id}")->getFont()->applyFromArray($this->out_stock_font);
+                }
+
+                // Вставляем картинку товара
+                $aSheets->getRowDimension($cell_id)->setRowHeight(96);
+                $image_path = shopImage::getThumbsPath($this->getImage($product['image_id']), '96x96');
+                if(file_exists($image_path)) {
+                    $image = new PHPExcel_Worksheet_Drawing();
+                    $image->setPath($image_path);
+                    $image->setCoordinates("A{$cell_id}");
+                    $image->setOffsetX(35);
+                    $image->setOffsetY(20);
+                    $image->setWorksheet($aSheets);
+                }
+
+                // Название товара
+                $aSheets->setCellValue("B{$cell_id}", $product['name']);
+                // Серия
+                $aSheets->setCellValue("C{$cell_id}", $category['name']);
+                // Оптовая цена
+                $discount = ($pricelist['discount'] / 100) * $product['price'];
+                $aSheets->setCellValue("D{$cell_id}", $product['price'] - $discount);
+                // Розничная цена
+                $aSheets->setCellValue("E{$cell_id}", $product['price']);
+
                 $cell_id++;
             }
         }
@@ -110,6 +175,8 @@ class shopPricelistPluginBackendDownloadController extends waController {
             $sql_sort = '`s`.`sku`';
         } else if ($sort == 'price') {
             $sql_sort = '`s`.`price`';
+        } else if ($sort == 'count') {
+            $sql_sort = '`s`.`count`';
         } else {
             $sql_sort = '`cp`.`sort`';
         }
@@ -124,13 +191,27 @@ class shopPricelistPluginBackendDownloadController extends waController {
                 FROM shop_product p
                 JOIN shop_product_skus s ON s.product_id = p.id
                 JOIN shop_category_products cp ON p.id = cp.product_id
-                WHERE p.status = 1 AND cp.category_id IN (i:category_id)
+                WHERE p.status = 1 AND p.category_id = i:category_id
                 ORDER BY ' . $sql_sort . ' ' . $sql_sort_type . ', s.sort ASC';
 
         $category_model = new shopCategoryModel();
         $products = $category_model->query($sql, array('category_id' => $category_id))->fetchAll($key);
 
         return $products;
+    }
+
+
+    /**
+     * Возвращает данные картинки продукта
+     *
+     * @param int $image_id
+     * @return void
+     */
+    public function getImage($image_id) {
+        if(!is_numeric($image_id))
+            return false;
+        $image_model = new shopProductImagesModel();
+        return $image_model->getById($image_id);
     }
 
 
@@ -146,7 +227,7 @@ class shopPricelistPluginBackendDownloadController extends waController {
         $cat_model = new shopCategoryModel();
         foreach($cats_array as $category) {
             $category = $cat_model->getById($category);
-            $products = $this->getProducts($category);
+            $products = $this->getProducts($category['id'], 'count', 'DESC');
             $categories[] = array(
                 'name' => $category['name'],
                 'items' => $products,
