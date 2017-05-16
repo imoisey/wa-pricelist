@@ -1,0 +1,27 @@
+#mainmenu *, #mainmenu :before, #mainmenu :after {
+    box-sizing: content-box;
+}
+
+a.button:hover {
+    color: #FFF !important;
+}
+.button:active {
+    text-shadow: none !important;
+}
+
+#mainmenu .s-level2 {
+    display: none;
+}
+
+#maincontent {
+    margin-top: 64px !important;
+}
+
+#wa-app, form {
+    overflow: initial;
+}
+
+.fields {
+    float: none;
+}
+

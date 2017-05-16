@@ -1,0 +1,12 @@
+{if count($categories_full) > 0}
+<h2>[`Категории`]</h2>
+<input type="hidden" name="template_id" value="{$template_id}">
+{foreach $categories_full as $category}
+    <div class="field" style="margin-left:{$category.depth * 20}px">
+        <div class="ui checkbox">
+            <input type="checkbox" name="categories[]" value="{$category.id}" {if $category.id == $categories[$category.id]}checked{/if}>
+            <label>{$category.name}</label>
+        </div>
+    </div>
+{/foreach}
+{/if}

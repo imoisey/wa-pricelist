@@ -1,0 +1,92 @@
+<div class="ul fluid container">
+    <h2>Шаблоны прайсов</h2>
+    <table class="ui celled table">
+    <thead>
+        <tr>
+            <th class="one wide center aligned">#</th>
+            <th>Название</th>
+            <th class="two wide center aligned">Витрина</th>
+            <th class="two wide center aligned">Скидка</th>
+            <th class="two wide center aligned">Только в наличии</th>
+            <th class="three wide center aligned">Действие</th>
+        </tr>
+    </thead>
+    <tbody>
+        {if is_array($templates) and count($templates) > 0}
+        {foreach $templates as $template}
+        <tr>
+            <td class="center aligned">{$template.id}</td>
+            <td>{$template.name}</td>
+            <td class="center aligned">{$template.storefront}</td>
+            <td class="center aligned">{$template.discount}%</td>
+            <td class="center aligned">{if $template.stock == 1}[`Да`]{else}[`Нет`]{/if}</td>
+            <td class="center aligned"><a href="?plugin=pricelist&action=download&template_id={$template.id}" class="ui primary button">Выгрузить</a> <a href="?plugin=pricelist&action=categories&template_id={$template.id}" class="ui teal button catview">Категории</a></td>
+        </tr>
+        {/foreach}
+        {else}
+        <tr>
+            <td colspan="6">Нет шаблонов</td>
+        </tr>
+        {/if}
+    </tbody>
+    </table>
+
+    <hr>
+
+    {if $wa->user()->isAdmin()}
+
+    {if $error_message}
+    <div class="ui negative message">
+        <i class="close icon"></i>
+        <div class="header">
+           {$error_message['header']}
+        </div>
+        <p>{$error_message['content']}</p>
+    </div>
+    {/if}
+
+    <div class="ui blue stacked segment">
+        <h4 class="ui header">Генератор прайсов</h4>
+        <form class="ui form" method="POST" action="?plugin=pricelist&action=save">
+                <div class="field">
+                    <label>Название</label>
+                    <input type="text" name="name" placeholder="Название шаблона" required>
+                </div>
+                <div class="field">
+                    <label>Витрина</label>
+                    <select class="ui search dropdown" name="storefront">
+                        <option value="">Выберите витрину</option>
+                        {foreach $storefronts as $site => $front}
+                        <option value="{$site}">{$site}</option>
+                        {/foreach}
+                    </select>
+                </div>
+                <div class="field">
+                    <label>Скидка %</label>
+                    <input type="text" name="discount" placeholder="Укажите оптовую скидку в процентах" required>
+                </div>
+                <div class="inline field">
+                    <div class="ui toggle checkbox">
+                    <input type="checkbox" tabindex="0" name="stock" class="hidden">
+                    <label>Только в наличии</label>
+                    </div>
+                </div>
+                <div class="grouped fields tree">
+                    <label>Категории</label>
+                {foreach $categories as $category}
+                    <div class="field depth{$category.depth}" style="margin-left:{$category.depth * 20}px">
+                        <div class="ui checkbox">
+                            <input type="checkbox" name="categories[]" value="{$category.id}">
+                            <label>{$category.name}</label>
+                        </div>
+                    </div>
+                {/foreach}
+                </div>
+                <div class="field">
+                    <button class="ui button" type="submit">Добавить</button>
+                </div>
+        </form>
+    </div>
+
+    {/if}
+</div>
