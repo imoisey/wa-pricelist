@@ -37,6 +37,13 @@ class shopPricelistPluginBackendDownloadController extends waController {
         )
     );
 
+    private $link_font = array(
+        'underline' => PHPExcel_Style_Font::UNDERLINE_DOUBLE,
+        'color' => array(
+            'rgb' => "0000FF"
+        ),
+    );
+
     public function execute() {
         $template_id = waRequest::get('template_id', false);
         if(!$template_id)
@@ -57,6 +64,7 @@ class shopPricelistPluginBackendDownloadController extends waController {
         $pExcel = $pExcel->load($template_xlsx);
         $pExcel->setActiveSheetIndex(0);
         $aSheets = $pExcel->getActiveSheet();
+
         // Начинаем заполнять данные в файл
         $cell_id = 3;
         foreach($tree_cats as $category) {
@@ -130,7 +138,11 @@ class shopPricelistPluginBackendDownloadController extends waController {
                 $aSheets->setCellValue("D{$cell_id}", $product['price'] - $discount);
                 // Розничная цена
                 $aSheets->setCellValue("E{$cell_id}", $product['price']);
-
+                // Ссылка на товар
+                $url = $this->getProductUrl($product, $pricelist['storefront']);
+                $aSheets->getCell("F{$cell_id}")->getHyperlink()->setUrl($url);
+                $aSheets->setCellValue("F{$cell_id}", 'Посмотреть');
+                $aSheets->getStyle("F{$cell_id}")->getFont()->applyFromArray($this->link_font);
                 $cell_id++;
             }
         }
@@ -200,8 +212,9 @@ class shopPricelistPluginBackendDownloadController extends waController {
      * @param array $product
      * @return void
      */
-    public function getProductUrl($product) {
-        
+    public function getProductUrl($product, $domain) {
+        $route_params['product_url'] = $product['url'];
+        return wa()->getRouteUrl('shop/frontend/product', $route_params, true, $domain);
     }
 
 
