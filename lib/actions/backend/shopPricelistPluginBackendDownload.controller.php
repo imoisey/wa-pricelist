@@ -147,9 +147,8 @@ class shopPricelistPluginBackendDownloadController extends waController {
             }
         }
 
-        $objWriter = PHPExcel_IOFactory::createWriter($pExcel, 'Excel2007');
-        $file = "file.xlsx";
-        $objWriter->save(wa()->getConfig()->getPluginPath('pricelist').'/lib/config/data/'.$file);
+        // Отдаем файл пользователю
+        $this->sendFileEXcel($pExcel, $pricelist);
 
     }
 
@@ -245,6 +244,27 @@ class shopPricelistPluginBackendDownloadController extends waController {
         }
 
         return $categories;
+    }
+
+    /**
+     * Отправляет файл EXcel в браузер пользователя
+     *
+     * @param object $xls
+     * @return void
+     */
+    private function sendFileEXcel($xls, $pricelist) {
+        $filename = "pricelist_{$pricelist['storefront']}_".date('dmY').".xls";
+        // Устанавливаем заголовки
+        $this->getResponse()->addHeader('Expires', 'Mon, 1 Apr 1974 05:00:00 GMT');
+        $this->getResponse()->addHeader('Last-Modified', gmdate('D,d M YH:i:s') . ' GMT');
+        $this->getResponse()->addHeader('Cache-Control', 'no-cache, must-revalidate');
+        $this->getResponse()->addHeader('Pragma', 'no-cache');
+        $this->getResponse()->addHeader('Content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        $this->getResponse()->addHeader('Content-Disposition', 'attachment; filename='.$filename);
+        $this->getResponse()->sendHeaders();
+        // Выводим содержимое файла
+        $objWriter = new PHPExcel_Writer_Excel5($xls);
+        $objWriter->save('php://output');
     }
 
 
