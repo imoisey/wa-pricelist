@@ -45,6 +45,9 @@ class shopPricelistPluginBackendDownloadController extends waController {
     );
 
     public function execute() {
+        // Формат ячейки для РУБ
+        define("PRICE_FORMAT", PHPExcel_Style_NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED1. "[\$ руб.-419]");
+
         $template_id = waRequest::get('template_id', false);
         if(!$template_id)
             throw new waException('Не передан ID шаблона', 500);
@@ -101,6 +104,10 @@ class shopPricelistPluginBackendDownloadController extends waController {
                 $aSheets->getStyle("E{$cell_id}")->getAlignment()->applyFromArray($this->alignment);
                 $aSheets->getStyle("F{$cell_id}")->getAlignment()->applyFromArray($this->alignment);
                 $aSheets->getStyle("G{$cell_id}")->getAlignment()->applyFromArray($this->alignment);
+
+                // Формат ячеек, денежные для РУБ
+                $aSheets->getStyle("D{$cell_id}")->getNumberFormat()->setFormatCode(PRICE_FORMAT);
+                $aSheets->getStyle("E{$cell_id}")->getNumberFormat()->setFormatCode(PRICE_FORMAT);
 
                  // Вычисляем остаток, чтобы подсветить не в наличии
                 $count = $product['count'] > 0 ? $product['count'] : 0;
