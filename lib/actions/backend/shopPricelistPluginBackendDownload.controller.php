@@ -104,7 +104,6 @@ class shopPricelistPluginBackendDownloadController extends waController {
 
                  // Вычисляем остаток, чтобы подсветить не в наличии
                 $count = $product['count'] > 0 ? $product['count'] : 0;
-                $aSheets->setCellValue("G{$cell_id}", $count);
                 if($count == 0 && $pricelist['stock'] == 0) {
                     $aSheets->getStyle("A{$cell_id}")->getFont()->applyFromArray($this->out_stock_font);
                     $aSheets->getStyle("B{$cell_id}")->getFont()->applyFromArray($this->out_stock_font);
@@ -116,6 +115,7 @@ class shopPricelistPluginBackendDownloadController extends waController {
                 }
                 elseif($count == 0 && $pricelist['stock'] == 1)
                     continue;
+                $aSheets->setCellValue("G{$cell_id}", $count);
 
                 // Вставляем картинку товара
                 $aSheets->getRowDimension($cell_id)->setRowHeight(96);
